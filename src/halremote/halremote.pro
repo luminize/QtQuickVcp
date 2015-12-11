@@ -13,16 +13,20 @@ SOURCES += \
     plugin.cpp \
     qhalpin.cpp \
     qhalremotecomponent.cpp \
+    halremotecomponentbase.cpp \
     qhalgroup.cpp \
     qhalsignal.cpp \
+    halremotecomponent.cpp
 
 HEADERS += \
     plugin.h \
     qhalpin.h \
     qhalremotecomponent.h \
+    halremotecomponentbase.h \
     qhalgroup.h \
     qhalsignal.h \
-    debughelper.h
+    debughelper.h \
+    halremotecomponent.h
 
 QML_INFRA_FILES = \
     qmldir

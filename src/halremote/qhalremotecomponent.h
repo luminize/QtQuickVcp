@@ -56,7 +56,6 @@ class QHalRemoteComponent : public AbstractServiceImplementation
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorStringChanged)
     Q_PROPERTY(QObject *containerItem READ containerItem WRITE setContainerItem NOTIFY containerItemChanged)
     Q_PROPERTY(bool create READ create WRITE setCreate NOTIFY createChanged)
-    Q_ENUMS(SocketState)
     Q_ENUMS(State)
     Q_ENUMS(ConnectionError)
 

@@ -23,7 +23,7 @@
 #include "qhalpin.h"
 #include "qhalsignal.h"
 #include "qhalgroup.h"
-#include "qhalremotecomponent.h"
+#include "halremotecomponent.h"
 
 void MachinekitHalRemotePlugin::registerTypes(const char *uri)
 {
@@ -33,7 +33,7 @@ void MachinekitHalRemotePlugin::registerTypes(const char *uri)
 
     // @uri Machinekit.HalRemote
     Q_ASSERT(uri == QLatin1String("Machinekit.HalRemote"));
-    qmlRegisterType<QHalRemoteComponent>(uri, 1, 0, "HalRemoteComponent");
+    qmlRegisterType<HalRemoteComponent>(uri, 1, 0, "HalRemoteComponent");
     qmlRegisterType<QHalPin>(uri, 1, 0, "HalPin");
     qmlRegisterType<QHalGroup>(uri, 1, 0, "HalGroup");
     qmlRegisterType<QHalSignal>(uri, 1, 0, "HalSignal");
