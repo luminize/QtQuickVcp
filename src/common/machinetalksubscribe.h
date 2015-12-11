@@ -4,8 +4,8 @@
 ** Any changes in this code will be lost.
 **
 ****************************************************************************/
-#ifndef MACHINETALK_RPC_CLIENT_H
-#define MACHINETALK_RPC_CLIENT_H
+#ifndef MACHINETALK_SUBSCRIBE_H
+#define MACHINETALK_SUBSCRIBE_H
 #include <QObject>
 #include <QStateMachine>
 #include <nzmqt/nzmqt.hpp>
@@ -20,7 +20,7 @@ namespace gpb = google::protobuf;
 
 using namespace nzmqt;
 
-class MachinetalkRpcClient : public QObject
+class MachinetalkSubscribe : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool ready READ ready WRITE setReady NOTIFY readyChanged)
@@ -32,8 +32,8 @@ class MachinetalkRpcClient : public QObject
     Q_ENUMS(State)
 
 public:
-    explicit MachinetalkRpcClient(QObject *parent = 0);
-    ~MachinetalkRpcClient();
+    explicit MachinetalkSubscribe(QObject *parent = 0);
+    ~MachinetalkSubscribe();
 
     enum State {
         Down = 0,
@@ -117,14 +117,16 @@ public slots:
             stop();
         }
     }
-
-    void sendSocketMessage(pb::ContainerType type, pb::Container *tx);
+    void addSocketTopic(const QString &name);
+    void removeSocketTopic(const QString &name);
+    void clearSocketTopics();
 
 private:
     bool m_ready;
     QString m_socketUri;
     QString m_debugName;
 
+    QSet<QString> m_socketTopics;   // the topics we are interested in
     SocketNotifierZMQContext *m_context;
     ZMQSocket  *m_socket;
 
@@ -138,7 +140,6 @@ private:
     int         m_heartbeatErrorThreshold;
     // more efficient to reuse a protobuf Messages
     pb::Container m_socketRx;
-    pb::Container m_socketTx;
 
     void start();
     void stop();
@@ -153,11 +154,11 @@ private slots:
 
     bool connectSockets();
     void disconnectSockets();
+    void subscribe();
 
     void socketMessageReceived(QList<QByteArray> messageList);
     void socketError(int errorNum, const QString& errorMsg);
 
-    void sendPing();
 
     void fsmDownEntered();
     void fsmTryingEntered();
@@ -166,9 +167,9 @@ private slots:
 signals:
 
     void socketUriChanged(QString uri);
-    void socketMessageReceived(pb::Container *rx);
+    void socketMessageReceived(QByteArray topic, pb::Container *rx);
     void debugNameChanged(QString debugName);
-    void stateChanged(MachinetalkRpcClient::State state);
+    void stateChanged(MachinetalkSubscribe::State state);
     void errorStringChanged(QString errorString);
     void heartbeatPeriodChanged(int heartbeatPeriod);
     void readyChanged(bool ready);
@@ -179,4 +180,4 @@ signals:
     void fsmTimeout();
 };
 
-#endif //MACHINETALK_RPC_CLIENT_H
+#endif //MACHINETALK_SUBSCRIBE_H

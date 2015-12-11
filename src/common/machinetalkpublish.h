@@ -4,8 +4,8 @@
 ** Any changes in this code will be lost.
 **
 ****************************************************************************/
-#ifndef MACHINETALK_RPC_CLIENT_H
-#define MACHINETALK_RPC_CLIENT_H
+#ifndef MACHINETALK_PUBLISH_H
+#define MACHINETALK_PUBLISH_H
 #include <QObject>
 #include <QStateMachine>
 #include <nzmqt/nzmqt.hpp>
@@ -20,7 +20,7 @@ namespace gpb = google::protobuf;
 
 using namespace nzmqt;
 
-class MachinetalkRpcClient : public QObject
+class MachinetalkPublish : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool ready READ ready WRITE setReady NOTIFY readyChanged)
@@ -28,17 +28,15 @@ class MachinetalkRpcClient : public QObject
     Q_PROPERTY(QString debugName READ debugName WRITE setDebugName NOTIFY debugNameChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorStringChanged)
-    Q_PROPERTY(int heartbeatPeriod READ heartbeatPeriod WRITE setHeartbeatPeriod NOTIFY heartbeatPeriodChanged)
     Q_ENUMS(State)
 
 public:
-    explicit MachinetalkRpcClient(QObject *parent = 0);
-    ~MachinetalkRpcClient();
+    explicit MachinetalkPublish(QObject *parent = 0);
+    ~MachinetalkPublish();
 
     enum State {
         Down = 0,
-        Trying = 1,
-        Up = 2,
+        Up = 1,
     };
 
     QString socketUri() const
@@ -59,11 +57,6 @@ public:
     QString errorString() const
     {
         return m_errorString;
-    }
-
-    int heartbeatPeriod() const
-    {
-        return m_heartbeatPeriod;
     }
 
     bool ready() const
@@ -91,15 +84,6 @@ public slots:
         emit debugNameChanged(debugName);
     }
 
-    void setHeartbeatPeriod(int heartbeatPeriod)
-    {
-        if (m_heartbeatPeriod == heartbeatPeriod)
-            return;
-
-        m_heartbeatPeriod = heartbeatPeriod;
-        emit heartbeatPeriodChanged(heartbeatPeriod);
-    }
-
     void setReady(bool ready)
     {
         if (m_ready == ready)
@@ -118,7 +102,7 @@ public slots:
         }
     }
 
-    void sendSocketMessage(pb::ContainerType type, pb::Container *tx);
+    void sendSocketMessage(const QByteArray &topic, pb::ContainerType type, pb::Container *tx);
 
 private:
     bool m_ready;
@@ -131,13 +115,7 @@ private:
     State         m_state;
     QStateMachine *m_fsm;
     QString       m_errorString;
-
-    QTimer     *m_heartbeatTimer;
-    int         m_heartbeatPeriod;
-    int         m_heartbeatErrorCount;
-    int         m_heartbeatErrorThreshold;
     // more efficient to reuse a protobuf Messages
-    pb::Container m_socketRx;
     pb::Container m_socketTx;
 
     void start();
@@ -145,38 +123,26 @@ private:
 
 private slots:
 
-    void heartbeatTimerTick();
-    void resetHeartbeatError();
-    void resetHeartbeatTimer();
-    void startHeartbeatTimer();
-    void stopHeartbeatTimer();
-
     bool connectSockets();
     void disconnectSockets();
 
-    void socketMessageReceived(QList<QByteArray> messageList);
     void socketError(int errorNum, const QString& errorMsg);
 
-    void sendPing();
+    void sendPing(const QByteArray &topic);
 
     void fsmDownEntered();
-    void fsmTryingEntered();
     void fsmUpEntered();
 
 signals:
 
     void socketUriChanged(QString uri);
-    void socketMessageReceived(pb::Container *rx);
     void debugNameChanged(QString debugName);
-    void stateChanged(MachinetalkRpcClient::State state);
+    void stateChanged(MachinetalkPublish::State state);
     void errorStringChanged(QString errorString);
-    void heartbeatPeriodChanged(int heartbeatPeriod);
     void readyChanged(bool ready);
     // fsm
     void fsmConnect();
-    void fsmConnected();
     void fsmDisconnect();
-    void fsmTimeout();
 };
 
-#endif //MACHINETALK_RPC_CLIENT_H
+#endif //MACHINETALK_PUBLISH_H

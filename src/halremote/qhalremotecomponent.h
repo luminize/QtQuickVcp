@@ -32,7 +32,7 @@
 #include <google/protobuf/text_format.h>
 #include "qhalpin.h"
 #include "machinetalkrpcclient.h"
-#include "machinetalksubscriber.h"
+#include "machinetalksubscribe.h"
 
 #if defined(Q_OS_IOS)
 namespace gpb = google_public::protobuf;
@@ -81,12 +81,12 @@ public:
 
     QString halrcmdUri() const
     {
-        return m_rpcClient->uri();
+        return m_rpcClient->socketUri();
     }
 
     QString halrcompUri() const
     {
-        return m_subscriber->uri();
+        return m_subscribe->socketUri();
     }
 
     QString name() const
@@ -134,12 +134,12 @@ public slots:
 
     void setHalrcmdUri(QString arg)
     {
-        m_rpcClient->setUri(arg);
+        m_rpcClient->setSocketUri(arg);
     }
 
     void setHalrcompUri(QString arg)
     {
-        m_subscriber->setUri(arg);
+        m_subscribe->setSocketUri(arg);
     }
 
     void setName(QString arg)
@@ -185,7 +185,7 @@ private:
     bool        m_create;
 
     MachinetalkRpcClient  *m_rpcClient;
-    MachinetalkSubscriber *m_subscriber;
+    MachinetalkSubscribe  *m_subscribe;
     // more efficient to reuse a protobuf Message
     pb::Container   m_tx;
     QMap<QString, QHalPin*> m_pinsByName;
@@ -205,9 +205,9 @@ private slots:
 
     void halrcompMessageReceived(QByteArray topic, pb::Container *rx);
     void halrcmdMessageReceived(pb::Container *rx);
-    void socketStateChanged(SocketState state);
-    void halrcmdStateChanged(SocketState state);
-    void halrcompStateChanged(SocketState state);
+    void socketStateChanged();
+    void halrcompStateChanged(MachinetalkSubscribe::State state);
+    void halrcmdStateChanged(MachinetalkRpcClient::State state);
 
     void addPins();
     void removePins();

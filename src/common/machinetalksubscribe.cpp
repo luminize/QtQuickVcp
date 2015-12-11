@@ -4,11 +4,11 @@
 ** Any changes in this code will be lost.
 **
 ****************************************************************************/
-#include "machinetalkrpcclient.h"
+#include "machinetalksubscribe.h"
 #include "debughelper.h"
 
-/** Generic Machinetalk RPC Client implementation */
-MachinetalkRpcClient::MachinetalkRpcClient(QObject *parent) :
+/** Generic Machinetalk Subscribe implementation */
+MachinetalkSubscribe::MachinetalkSubscribe(QObject *parent) :
     QObject(parent),
     m_ready(false),
     m_socketUri(""),
@@ -19,7 +19,7 @@ MachinetalkRpcClient::MachinetalkRpcClient(QObject *parent) :
     m_fsm(NULL),
     m_errorString("")
     ,m_heartbeatTimer(new QTimer(this)),
-    m_heartbeatPeriod(2500),
+    m_heartbeatPeriod(0),
     m_heartbeatErrorCount(0),
     m_heartbeatErrorThreshold(2)
 {
@@ -44,14 +44,15 @@ MachinetalkRpcClient::MachinetalkRpcClient(QObject *parent) :
     upState->addTransition(this, SIGNAL(fsmDisconnect()), downState);
 
     connect(this, SIGNAL(fsmConnect()), this, SLOT(connectSockets()));
-    connect(this, SIGNAL(fsmConnect()), this, SLOT(resetHeartbeatError()));
-    connect(this, SIGNAL(fsmConnect()), this, SLOT(sendPing()));
-    connect(this, SIGNAL(fsmConnect()), this, SLOT(startHeartbeatTimer()));
+    connect(this, SIGNAL(fsmConnect()), this, SLOT(subscribe()));
+    connect(this, SIGNAL(fsmConnected()), this, SLOT(resetHeartbeatError()));
+    connect(this, SIGNAL(fsmConnected()), this, SLOT(startHeartbeatTimer()));
     connect(this, SIGNAL(fsmDisconnect()), this, SLOT(stopHeartbeatTimer()));
     connect(this, SIGNAL(fsmDisconnect()), this, SLOT(disconnectSockets()));
+    connect(this, SIGNAL(fsmTimeout()), this, SLOT(stopHeartbeatTimer()));
     connect(this, SIGNAL(fsmTimeout()), this, SLOT(disconnectSockets()));
     connect(this, SIGNAL(fsmTimeout()), this, SLOT(connectSockets()));
-    connect(this, SIGNAL(fsmTimeout()), this, SLOT(sendPing()));
+    connect(this, SIGNAL(fsmTimeout()), this, SLOT(subscribe()));
 
     m_context = new SocketNotifierZMQContext(this, 1);
     connect(m_context, SIGNAL(notifierError(int,QString)),
@@ -59,7 +60,7 @@ MachinetalkRpcClient::MachinetalkRpcClient(QObject *parent) :
     m_context->start();
 }
 
-MachinetalkRpcClient::~MachinetalkRpcClient()
+MachinetalkSubscribe::~MachinetalkSubscribe()
 {
     if (m_ready)
     {
@@ -74,10 +75,28 @@ MachinetalkRpcClient::~MachinetalkRpcClient()
     }
 }
 
-/** Connects the 0MQ sockets */
-bool MachinetalkRpcClient::connectSockets()
+/** Add a topic that should be subscribed **/
+void MachinetalkSubscribe::addSocketTopic(const QString &name)
 {
-    m_socket = m_context->createSocket(ZMQSocket::TYP_DEALER, this);
+    m_socketTopics.insert(name);
+}
+
+/** Removes a topic from the list of topics that should be subscribed **/
+void MachinetalkSubscribe::removeSocketTopic(const QString &name)
+{
+    m_socketTopics.remove(name);
+}
+
+/** Clears the the topics that should be subscribed **/
+void MachinetalkSubscribe::clearSocketTopics()
+{
+    m_socketTopics.clear();
+}
+
+/** Connects the 0MQ sockets */
+bool MachinetalkSubscribe::connectSockets()
+{
+    m_socket = m_context->createSocket(ZMQSocket::TYP_SUB, this);
     m_socket->setLinger(0);
 
     try {
@@ -101,7 +120,7 @@ bool MachinetalkRpcClient::connectSockets()
 }
 
 /** Disconnects the 0MQ sockets */
-void MachinetalkRpcClient::disconnectSockets()
+void MachinetalkSubscribe::disconnectSockets()
 {
     if (m_socket != NULL)
     {
@@ -111,7 +130,15 @@ void MachinetalkRpcClient::disconnectSockets()
     }
 }
 
-void MachinetalkRpcClient::start()
+void MachinetalkSubscribe::subscribe()
+{
+    foreach(QString topic, m_socketTopics)
+    {
+        m_socket->subscribeTo(topic.toLocal8Bit());
+    }
+}
+
+void MachinetalkSubscribe::start()
 {
 #ifdef QT_DEBUG
    DEBUG_TAG(1, m_debugName, "start");
@@ -120,7 +147,7 @@ void MachinetalkRpcClient::start()
    emit fsmConnect();
 }
 
-void MachinetalkRpcClient::stop()
+void MachinetalkSubscribe::stop()
 {
 #ifdef QT_DEBUG
     DEBUG_TAG(1, m_debugName, "stop");
@@ -129,12 +156,12 @@ void MachinetalkRpcClient::stop()
     emit fsmDisconnect();
 }
 
-void MachinetalkRpcClient::resetHeartbeatError()
+void MachinetalkSubscribe::resetHeartbeatError()
 {
     m_heartbeatErrorCount = 0;
 }
 
-void MachinetalkRpcClient::resetHeartbeatTimer()
+void MachinetalkSubscribe::resetHeartbeatTimer()
 {
     if (m_heartbeatTimer->isActive())
     {
@@ -148,19 +175,18 @@ void MachinetalkRpcClient::resetHeartbeatTimer()
     }
 }
 
-void MachinetalkRpcClient::startHeartbeatTimer()
+void MachinetalkSubscribe::startHeartbeatTimer()
 {
     resetHeartbeatTimer();
 }
 
-void MachinetalkRpcClient::stopHeartbeatTimer()
+void MachinetalkSubscribe::stopHeartbeatTimer()
 {
     m_heartbeatTimer->stop();
 }
 
-void MachinetalkRpcClient::heartbeatTimerTick()
+void MachinetalkSubscribe::heartbeatTimerTick()
 {
-    sendPing();
 
     m_heartbeatErrorCount += 1;
 
@@ -174,10 +200,19 @@ void MachinetalkRpcClient::heartbeatTimerTick()
 }
 
 /** Processes all message received on the 0MQ socket */
-void MachinetalkRpcClient::socketMessageReceived(QList<QByteArray> messageList)
+void MachinetalkSubscribe::socketMessageReceived(QList<QByteArray> messageList)
 {
     pb::Container *rx = &m_socketRx;
-    rx->ParseFromArray(messageList.at(0).data(), messageList.at(0).size());
+    QByteArray topic;
+
+    if (messageList.length() < 2)  // in case we received insufficient data
+    {
+        return;
+    }
+
+    // we only handle the first two messges
+    topic = messageList.at(0);
+    rx->ParseFromArray(messageList.at(1).data(), messageList.at(1).size());
 
 #ifdef QT_DEBUG
     std::string s;
@@ -186,61 +221,39 @@ void MachinetalkRpcClient::socketMessageReceived(QList<QByteArray> messageList)
 #endif
 
     // react to any incoming message
-    resetHeartbeatError();
-    if (m_state == Trying)
-    {
-        emit fsmConnected();
-    }
-
-    // react to ping acknowledge message
-    if (rx->type() == pb::MT_PING_ACKNOWLEDGE)
-    {
-        return;
-    }
-
-    emit socketMessageReceived(rx);
-}
-
-void MachinetalkRpcClient::sendSocketMessage(pb::ContainerType type, pb::Container *tx)
-{
-    if (m_socket == NULL) {  // disallow sending messages when not connected
-        return;
-    }
-
-    tx->set_type(type);
-#ifdef QT_DEBUG
-    std::string s;
-    gpb::TextFormat::PrintToString(*tx, &s);
-    DEBUG_TAG(3, m_debugName, "sent message" << QString::fromStdString(s));
-#endif
-    try {
-        m_socket->sendMessage(QByteArray(tx->SerializeAsString().c_str(), tx->ByteSize()));
-    }
-    catch (const zmq::error_t &e) {
-        QString errorString;
-        errorString = QString("Error %1: ").arg(e.num()) + QString(e.what());
-        //updateState(SocketError, errorString);
-        return;
-    }
-    tx->Clear();
-
     resetHeartbeatTimer();
+
+    // react to ping message
+    if (rx->type() == pb::MT_PING)
+    {
+        return;
+    }
+
+    // react to full update message
+    if (rx->type() == pb::MT_HALRCOMP_FULL_UPDATE)
+    {
+        if (rx->has_pparams())
+        {
+            pb::ProtocolParameters pparams = rx->pparams();
+            m_heartbeatPeriod = pparams.keepalive_timer();
+        }
+        if (m_state == Trying)
+        {
+            emit fsmConnected();
+        }
+    }
+
+    emit socketMessageReceived(topic, rx);
 }
 
-void MachinetalkRpcClient::sendPing()
-{
-    pb::Container *tx = &m_socketTx;
-    sendSocketMessage(pb::MT_PING, tx);
-}
-
-void MachinetalkRpcClient::socketError(int errorNum, const QString &errorMsg)
+void MachinetalkSubscribe::socketError(int errorNum, const QString &errorMsg)
 {
     QString errorString;
     errorString = QString("Error %1: ").arg(errorNum) + errorMsg;
     //updateState(SocketError, errorString);
 }
 
-void MachinetalkRpcClient::fsmDownEntered()
+void MachinetalkSubscribe::fsmDownEntered()
 {
 #ifdef QT_DEBUG
     DEBUG_TAG(1, m_debugName, "DOWN");
@@ -249,7 +262,7 @@ void MachinetalkRpcClient::fsmDownEntered()
     emit stateChanged(m_state);
 }
 
-void MachinetalkRpcClient::fsmTryingEntered()
+void MachinetalkSubscribe::fsmTryingEntered()
 {
 #ifdef QT_DEBUG
     DEBUG_TAG(1, m_debugName, "TRYING");
@@ -258,7 +271,7 @@ void MachinetalkRpcClient::fsmTryingEntered()
     emit stateChanged(m_state);
 }
 
-void MachinetalkRpcClient::fsmUpEntered()
+void MachinetalkSubscribe::fsmUpEntered()
 {
 #ifdef QT_DEBUG
     DEBUG_TAG(1, m_debugName, "UP");

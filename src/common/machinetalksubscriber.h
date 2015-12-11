@@ -97,8 +97,6 @@ public slots:
     void removeTopic(const QString &name);
     void clearTopics();
 
-
-
 private:
     bool m_ready;
     QString m_uri;

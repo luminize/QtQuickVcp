@@ -177,21 +177,19 @@ QHalRemoteComponent::QHalRemoteComponent(QObject *parent) :
     m_rpcClient = new MachinetalkRpcClient(this);
     connect(m_rpcClient, SIGNAL(heartbeatPeriodChanged(int)),
             this, SIGNAL(heartbeatPeriodChanged(int)));
-    connect(m_rpcClient, SIGNAL(uriChanged(QString)),
+    connect(m_rpcClient, SIGNAL(socketUriChanged(QString)),
             this, SIGNAL(halrcmdUriChanged(QString)));
-    connect(m_rpcClient, SIGNAL(messageReceived(pb::Container*)),
+    connect(m_rpcClient, SIGNAL(socketMessageReceived(pb::Container*)),
             this, SLOT(halrcmdMessageReceived(pb::Container*)));
-    connect(m_rpcClient, SIGNAL(socketStateChanged(SocketState)),
-            this, SLOT(socketStateChanged(SocketState)));
-    connect(m_rpcClient, SIGNAL(socketStateChanged(SocketState)),
-            this, SLOT(halrcmdStateChanged(SocketState)));
-    m_subscriber = new MachinetalkSubscriber(this);
-    connect(m_subscriber, SIGNAL(uriChanged(QString)),
+    connect(m_rpcClient, SIGNAL(stateChanged(MachinetalkRpcClient::State)),
+            this, SLOT(halrcmdStateChanged(MachinetalkRpcClient::State)));
+    m_subscribe = new MachinetalkSubscribe(this);
+    connect(m_subscribe, SIGNAL(socketUriChanged(QString)),
             this, SIGNAL(halrcompUriChanged(QString)));
-    connect(m_subscriber, SIGNAL(messageReceived(QByteArray,pb::Container*)),
+    connect(m_subscribe, SIGNAL(socketMessageReceived(QByteArray,pb::Container*)),
             this, SLOT(halrcompMessageReceived(QByteArray,pb::Container*)));
-    connect(m_subscriber, SIGNAL(socketStateChanged(SocketState)),
-            this, SLOT(socketStateChanged(SocketState)));
+    connect(m_subscribe, SIGNAL(stateChanged(MachinetalkSubscribe::State)),
+            this, SLOT(halrcompStateChanged(MachinetalkSubscribe::State)));
 }
 
 /** Scans all children of the container item for pins and adds them to a map */
@@ -283,7 +281,7 @@ void QHalRemoteComponent::bind()
     DEBUG_TAG(3, m_name, QString::fromStdString(s))
 #endif
 
-    m_rpcClient->sendMessage(pb::MT_HALRCOMP_BIND, &m_tx);
+    m_rpcClient->sendSocketMessage(pb::MT_HALRCOMP_BIND, &m_tx);
 }
 
 /** Updates a local pin with the value of a remote pin */
@@ -362,7 +360,7 @@ void QHalRemoteComponent::pinChange(QVariant value)
         halPin->set_halu32(pin->value().toUInt());
     }
 
-    m_rpcClient->sendMessage(pb::MT_HALRCOMP_SET, &m_tx);
+    m_rpcClient->sendSocketMessage(pb::MT_HALRCOMP_SET, &m_tx);
 }
 
 void QHalRemoteComponent::start()
@@ -373,8 +371,8 @@ void QHalRemoteComponent::start()
     //updateState(Connecting);
 
     addPins();
-    m_subscriber->clearTopics();  // set the subscription topic => component name
-    m_subscriber->addTopic(m_name);
+    m_subscribe->clearSocketTopics();  // set the subscription topic => component name
+    m_subscribe->addSocketTopic(m_name);
     m_rpcClient->setReady(true);
 }
 
@@ -391,7 +389,7 @@ void QHalRemoteComponent::stop()
 
 void QHalRemoteComponent::cleanup()
 {
-    m_subscriber->setReady(false);
+    m_subscribe->setReady(false);
     m_rpcClient->setReady(false);
     removePins();
 }
@@ -481,6 +479,8 @@ void QHalRemoteComponent::halrcompMessageReceived(QByteArray topic, pb::Containe
     std::string s;
     gpb::TextFormat::PrintToString(*rx, &s);
     DEBUG_TAG(3, m_name, "status update" << topic << QString::fromStdString(s))
+#else
+    Q_UNUSED(topic)
 #endif
 
     if (rx->type() == pb::MT_HALRCOMP_INCREMENTAL_UPDATE) //incremental update
@@ -565,7 +565,7 @@ void QHalRemoteComponent::halrcmdMessageReceived(pb::Container *rx)
         DEBUG_TAG(1, m_name,  "bind confirmed")
 #endif
 
-        m_subscriber->setReady(true);
+        m_subscribe->setReady(true);
     }
     else if ((rx->type() == pb::MT_HALRCOMP_BIND_REJECT)
              || (rx->type() == pb::MT_HALRCOMP_SET_REJECT))
@@ -604,21 +604,16 @@ void QHalRemoteComponent::halrcmdMessageReceived(pb::Container *rx)
     }
 }
 
-void QHalRemoteComponent::socketStateChanged(SocketState state)
+void QHalRemoteComponent::socketStateChanged()
 {
-    Q_UNUSED(state)
-    SocketState subscriberState = m_subscriber->socketState();
-    SocketState clientState = m_rpcClient->socketState();
+    MachinetalkSubscribe::State subscribeState = m_subscribe->state();
+    MachinetalkRpcClient::State clientState = m_rpcClient->state();
 
-    if ((subscriberState == SocketUp) && (clientState == SocketUp))
+    if ((subscribeState == MachinetalkSubscribe::Up) && (clientState == MachinetalkRpcClient::Up))
     {
         updateState(Connected);
     }
-    else if ((subscriberState == SocketTimeout) || (clientState == SocketTimeout))
-    {
-        updateState(Timeout);
-    }
-    else if ((subscriberState == SocketTrying) || (clientState == SocketTrying))
+    else if ((subscribeState == MachinetalkSubscribe::Trying) || (clientState == MachinetalkRpcClient::Trying))
     {
         updateState(Connecting);
     }
@@ -628,19 +623,23 @@ void QHalRemoteComponent::socketStateChanged(SocketState state)
     }
 }
 
-void QHalRemoteComponent::halrcmdStateChanged(SocketState state)
+void QHalRemoteComponent::halrcompStateChanged(MachinetalkSubscribe::State state)
 {
-    if (state == SocketUp)
+    Q_UNUSED(state)
+    socketStateChanged();
+}
+
+void QHalRemoteComponent::halrcmdStateChanged(MachinetalkRpcClient::State state)
+{
+    socketStateChanged();
+
+    if (state == MachinetalkRpcClient::Up)
     {
+        qDebug() << "TESTEST";
         bind();
     }
     else
     {
-        m_subscriber->setReady(false);
+        m_subscribe->setReady(false);
     }
-}
-
-void QHalRemoteComponent::halrcompStateChanged(SocketState state)
-{
-
 }
