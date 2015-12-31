@@ -30,8 +30,8 @@
 #include <QHostInfo>
 #include <nzmqt/nzmqt.hpp>
 #include <google/protobuf/text_format.h>
-#include "message.pb.h"
-#include "status.pb.h"
+#include <machinetalk/protobuf/message.pb.h>
+#include <machinetalk/protobuf/status.pb.h>
 #include "emcclass.pb.h"
 #include "qapplicationstatus.h"
 

@@ -538,9 +538,10 @@ void QApplicationCommand::setToolOffset(int index, double zOffset, double xOffse
 
     pb::EmcCommandParameters *commandParams = m_tx.mutable_emc_command_params();
     pb::EmcToolData *tooldata = commandParams->mutable_tool_data();
+    pb::Position *offset = tooldata->mutable_offset();
     tooldata->set_index(index);
-    tooldata->set_zoffset(zOffset);
-    tooldata->set_xoffset(xOffset);
+    offset->set_z(zOffset);
+    offset->set_x(xOffset);
     tooldata->set_diameter(diameter);
     tooldata->set_frontangle(frontangle);
     tooldata->set_backangle(backangle);

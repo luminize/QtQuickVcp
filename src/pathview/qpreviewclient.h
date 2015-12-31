@@ -27,7 +27,7 @@
 #include <abstractserviceimplementation.h>
 #include <nzmqt/nzmqt.hpp>
 #include "qgcodeprogrammodel.h"
-#include "message.pb.h"
+#include <machinetalk/protobuf/message.pb.h>
 
 #if defined(Q_OS_IOS)
 namespace gpb = google_public::protobuf;
@@ -74,7 +74,7 @@ public:
         InterpreterIdle = pb::INTERP_IDLE,
         InterpreterRunning = pb::INTERP_RUNNING,
         InterpreterPaused = pb::INTERP_PAUSED,
-        InterpreterQueueWait = pb::INTERP_QEUEUE_WAIT,
+        InterpreterQueueWait = pb::INTERP_QUEUE_WAIT,
         InterpreterSyncWait = pb::INTERP_SYNC_WAIT,
         InterpreterAbortWait = pb::INTERP_ABORT_WAIT,
         InterpreterStateUnset = pb::INTERP_STATE_UNSET

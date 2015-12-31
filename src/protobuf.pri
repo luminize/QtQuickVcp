@@ -15,9 +15,9 @@
 
 isEmpty(PROTOBUF_PROTOC): PROTOBUF_PROTOC = protoc
 
-PROTOGEN = generated
+PROTOGEN = generated/machinetalk/protobuf
 
-PROTOPATH += .
+PROTOPATH += ${QMAKE_FILE_IN_PATH}/../../
 !isEmpty(PROTOBUF_INCLUDE_PATH): PROTOPATH += $$PROTOBUF_INCLUDE_PATH
 PROTOPATHS =
 for(p, PROTOPATH):PROTOPATHS += --proto_path=$${p}
