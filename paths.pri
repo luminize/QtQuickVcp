@@ -11,22 +11,25 @@ android: {
     PROTOBUF_LIB_FLAGS = -Bstatic
 }
 ios: {
+    PROTOBUF_INCLUDE_PATH = /Users/basdebruijn/prog/build-protobuf/protobuf-2.6.1/include
+    PROTOBUF_LIB_PATH = /Users/basdebruijn/prog/build-protobuf/protobuf-2.6.1/lib
+    PROTOBUF_PROTOC = /Users/basdebruijn/prog/build-protobuf/protobuf-2.6.1/bin/protoc
     ZEROMQ_INCLUDE_PATH = /opt/zeromq-ios/include
     ZEROMQ_LIB_PATH = /opt/zeromq-ios/lib
     ZEROMQ_LIB_FLAGS = -Bstatic
-    PROTOBUF_INCLUDE_PATH = /opt/protobuf-ios/include
-    PROTOBUF_LIB_PATH = /opt/protobuf-ios/lib
+#    PROTOBUF_INCLUDE_PATH = /opt/protobuf-ios/include
+#    PROTOBUF_LIB_PATH = /opt/protobuf-ios/lib
     PROTOBUF_LIB_FLAGS = -Bstatic
-    PROTOBUF_PROTOC = /opt/protobuf-ios/bin/protoc
+#    PROTOBUF_PROTOC = /opt/protobuf-ios/bin/protoc
     LIBSODIUM_LIB_PATH = /opt/libsodium-ios/lib
 }
-macx: {
+macx-clang: {
+    PROTOBUF_INCLUDE_PATH = /Users/basdebruijn/prog/build-protobuf/protobuf-2.6.1/include
+    PROTOBUF_LIB_PATH = /Users/basdebruijn/prog/build-protobuf/protobuf-2.6.1/lib
+    PROTOBUF_PROTOC = /Users/basdebruijn/prog/build-protobuf/protobuf-2.6.1/bin/protoc
     ZEROMQ_INCLUDE_PATH = /opt/local/include
     ZEROMQ_LIB_PATH = /opt/local/lib
     ZEROMQ_LIB_FLAGS = -Bstatic
-    PROTOBUF_INCLUDE_PATH = /opt/local/include
-    PROTOBUF_LIB_PATH = /opt/local/lib
-    PROTOBUF_PROTOC = /opt/local/bin/protoc
     PROTOBUF_LIB_FLAGS = -Bstatic
 }
 win32-msvc2013: {
